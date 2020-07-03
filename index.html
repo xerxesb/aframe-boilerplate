@@ -34,25 +34,53 @@
         <a-phosphene id="p10006" x="0.1" y="0"></a-phosphene>
         <a-phosphene id="p10007" x="0.3" y="0.15"></a-phosphene>
         <a-phosphene id="p10008" x="0.3" y="-0.15"></a-phosphene>
+        <a-entity id="noConnectionLabel" position="-0.30 0.0 -1" text="anchor: left; width: 2; color: red; value: No connection..."></a-entity>
       </a-entity>
     </a-scene>
   </body>
 
   <script>
-    var intensity = 0;
+    function connect() {
+      const ws = new WebSocket(`ws://${window.location.hostname}:8080`);
+
+      ws.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+        data.forEach(x => {
+          document.querySelector(`#p${x.id}`).setAttribute('intensity', x.int);
+        })
+      }
+
+      ws.onopen = (e) => {
+        console.log("Connection established.");
+        showNoConnectionLabel(false);
+        ws.send("Client is " + navigator.userAgent)
+      }
+
+      ws.onclose = (e) => {
+        console.log("Connection lost...Retrying in 5s...");
+        resetPhosphenes();
+        showNoConnectionLabel(true);
+        setTimeout(() => { connect(); }, 5000)
+      }
+    }
+
+    function resetPhosphenes() {
+      document.querySelectorAll('a-phosphene').forEach(el => el.setAttribute('intensity', 0));
+    }
+
+    function showNoConnectionLabel(shouldShow) {
+        document.querySelector("#noConnectionLabel").object3D.visible = shouldShow;
+    }
+
     $(document).ready((e) => { 
+      // var intensity = 0;
       // setInterval(() => {
       //   document.querySelectorAll('a-phosphene').forEach(el => el.setAttribute('intensity', Math.sin(intensity)));
       //   intensity = intensity + 0.1;
       // }, 20)
 
-      const ws = new WebSocket(`ws://${window.location.hostname}:8080`);
-      ws.onmessage = function (event) {
-        const data = JSON.parse(event.data);
-        data.forEach(x => {
-          document.querySelector(`#p${x.id}`).setAttribute('intensity', x.int);
-        })
-      }
+      resetPhosphenes();
+      connect();
     });
   </script>
 </html>
