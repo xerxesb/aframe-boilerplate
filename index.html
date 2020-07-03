@@ -24,8 +24,8 @@
     </script>
   </head>
   <body>
-    <a-scene background="color: black">
-      <a-entity camera="spectator:false; position:0 0 0" look-controls="enabled: false; hmdEnabled: false; touchEnabled: false; magicWindowTrackingEnabled: false">
+    <a-scene background="color:black">
+      <a-entity camera look-controls="enabled: false; touchEnabled: false; magicWindowTrackingEnabled: false">
         <a-phosphene id="p10001" x="-0.3" y="0.15"></a-phosphene>
         <a-phosphene id="p10002" x="-0.3" y="-0.15"></a-phosphene>
         <a-phosphene id="p10003" x="-0.1" y="0"></a-phosphene>
@@ -42,9 +42,9 @@
     var intensity = 0;
     $(document).ready((e) => { 
       setInterval(() => {
-        //document.querySelectorAll('a-phosphene').forEach(el => el.setAttribute('intensity', Math.sin(intensity)));
-        intensity = intensity + 0.01;
-      }, 2)
+        document.querySelectorAll('a-phosphene').forEach(el => el.setAttribute('intensity', Math.sin(intensity)));
+        intensity = intensity + 0.1;
+      }, 20)
     });
   </script>
 </html>
