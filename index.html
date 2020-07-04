@@ -12,13 +12,15 @@
           phosphene: {},
           geometry: { primitive: 'circle', radius: '0.085' },
           material: { src:'phosphene-texture2.png', color: 'white', opacity: '1' },
+          animation__noConnection: { property:'material.opacity', from: -1, to: 1, dur: 3000, dir: 'alternate', easing: 'easeInOutSine', loop: true, enabled: false },
           position: { x:0, y:0, z:-1 } // Assumes x-range -0.5 <= x <= 0.5, and y-range -0.4 <= y <= 0.4
         },
 
         mappings: {
           intensity: 'material.opacity',
           x: 'position.x',
-          y: 'position.y'
+          y: 'position.y',
+          pulse: 'animation__noConnection.enabled'
         }
       })
     </script>
@@ -28,13 +30,13 @@
       <a-entity camera look-controls="enabled: false; touchEnabled: false; magicWindowTrackingEnabled: false">
         <a-phosphene id="p10001" x="-0.3" y="0.15"></a-phosphene>
         <a-phosphene id="p10002" x="-0.3" y="-0.15"></a-phosphene>
-        <a-phosphene id="p10003" x="-0.1" y="0"></a-phosphene>
+        <a-phosphene id="p10003" x="-0.125" y="0"></a-phosphene>
         <a-phosphene id="p10004" x="0" y="0.25"></a-phosphene>
         <a-phosphene id="p10005" x="0" y="-0.25"></a-phosphene>
-        <a-phosphene id="p10006" x="0.1" y="0"></a-phosphene>
+        <a-phosphene id="p10006" x="0.125" y="0"></a-phosphene>
         <a-phosphene id="p10007" x="0.3" y="0.15"></a-phosphene>
         <a-phosphene id="p10008" x="0.3" y="-0.15"></a-phosphene>
-        <a-entity id="noConnectionLabel" position="-0.30 0.0 -1" text="anchor: left; width: 2; color: red; value: No connection..."></a-entity>
+        <a-entity id="noConnectionLabel" position="-0.30 0.0 -1" text="anchor: left; width: 2; color: #BB3532; value: No connection..."></a-entity>
       </a-entity>
     </a-scene>
   </body>
@@ -70,27 +72,15 @@
       document.querySelectorAll('a-phosphene').forEach(el => el.setAttribute('intensity', 0));
     }
 
-    function showNoConnectionLabel(shouldShow) {
-        document.querySelector("#noConnectionLabel").object3D.visible = shouldShow;
+    function pulsePhosphenes(shouldPulse) {
+      document.querySelectorAll('a-phosphene').forEach(el => el.setAttribute('pulse', shouldPulse));
     }
 
-    var intervalId = null;
-    function pulsePhosphenes(shouldPulse) {
-      if (!shouldPulse) { 
-        console.log("Clearing interval: " + intervalId);
-        clearInterval(intervalId); return; 
-      }
-
-      console.log('starting pulse');
-      var intensity = 0;
-      intervalId = setInterval(() => {
-        document.querySelectorAll('a-phosphene').forEach(el => el.setAttribute('intensity', Math.sin(intensity)));
-        intensity = intensity + 0.1;
-      }, 20)
+    function showNoConnectionLabel(shouldShow) {
+      document.querySelector("#noConnectionLabel").object3D.visible = shouldShow;
     }
 
     $(document).ready((e) => { 
-
       resetPhosphenes();
       connect();
     });
