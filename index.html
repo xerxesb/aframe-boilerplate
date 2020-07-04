@@ -10,8 +10,8 @@
       AFRAME.registerPrimitive('a-phosphene', {
         defaultComponents: {
           phosphene: {},
-          geometry: { primitive: 'circle', radius: '0.035' },
-          material: { color: 'white', opacity: '1' },
+          geometry: { primitive: 'circle', radius: '0.085' },
+          material: { src:'phosphene-texture2.png', color: 'white', opacity: '1' },
           position: { x:0, y:0, z:-1 } // Assumes x-range -0.5 <= x <= 0.5, and y-range -0.4 <= y <= 0.4
         },
 
@@ -53,6 +53,7 @@
       ws.onopen = (e) => {
         console.log("Connection established.");
         showNoConnectionLabel(false);
+        pulsePhosphenes(false);
         ws.send("Client is " + navigator.userAgent)
       }
 
@@ -60,7 +61,8 @@
         console.log("Connection lost...Retrying in 5s...");
         resetPhosphenes();
         showNoConnectionLabel(true);
-        setTimeout(() => { connect(); }, 5000)
+        pulsePhosphenes(true);
+        setTimeout(() => { connect(); pulsePhosphenes(false); }, 5000)
       }
     }
 
@@ -72,12 +74,22 @@
         document.querySelector("#noConnectionLabel").object3D.visible = shouldShow;
     }
 
+    var intervalId = null;
+    function pulsePhosphenes(shouldPulse) {
+      if (!shouldPulse) { 
+        console.log("Clearing interval: " + intervalId);
+        clearInterval(intervalId); return; 
+      }
+
+      console.log('starting pulse');
+      var intensity = 0;
+      intervalId = setInterval(() => {
+        document.querySelectorAll('a-phosphene').forEach(el => el.setAttribute('intensity', Math.sin(intensity)));
+        intensity = intensity + 0.1;
+      }, 20)
+    }
+
     $(document).ready((e) => { 
-      // var intensity = 0;
-      // setInterval(() => {
-      //   document.querySelectorAll('a-phosphene').forEach(el => el.setAttribute('intensity', Math.sin(intensity)));
-      //   intensity = intensity + 0.1;
-      // }, 20)
 
       resetPhosphenes();
       connect();
