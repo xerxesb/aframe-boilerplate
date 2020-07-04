@@ -10,7 +10,7 @@
       AFRAME.registerPrimitive('a-phosphene', {
         defaultComponents: {
           phosphene: {},
-          geometry: { primitive: 'circle', radius: '0.085' },
+          geometry: { primitive: 'circle', radius: '0.1' },
           material: { src:'phosphene-texture2.png', color: 'white', opacity: '1' },
           animation__noConnection: { property:'material.opacity', from: -1, to: 1, dur: 3000, dir: 'alternate', easing: 'easeInOutSine', loop: true, enabled: false },
           position: { x:0, y:0, z:-1 } // Assumes x-range -0.5 <= x <= 0.5, and y-range -0.4 <= y <= 0.4
