@@ -59,7 +59,15 @@
       const ws = new WebSocket(`ws://${window.location.hostname}:8080`);
 
       ws.onmessage = (e) => { // Payload example format [{id: 10002, int: 0.2}, {id: 10005, int: 0.9}, {id: 10008, int: 0.2}, {id: 10001, int: 0}]
-        const stimulated = JSON.parse(e.data);
+        try {
+          var parsedData = JSON.parse(e.data);
+        } catch (error) {
+          console.log(e.data);
+          console.error(`Invalid JSON data "${e.data}"`)
+          return;
+        }
+
+        const stimulated = parsedData;
 
         // anything that's unstimulated should decay. If it's already decaying it will be left to complete its decay.
         let unStimulated = MAP_8_DIAMOND.filter(x => stimulated.map(y => y.id).indexOf(x.id) == -1);
@@ -78,7 +86,7 @@
         console.log("Connection established.");
         showNoConnectionLabel(false);
         pulsePhosphenes(false);
-        ws.send("Client is " + navigator.userAgent)
+        ws.send(JSON.stringify({ "client": navigator.userAgent }));
       }
 
       ws.onclose = (e) => { // when the client disconnects
