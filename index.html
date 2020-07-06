@@ -7,9 +7,10 @@
     <script src="https://code.jquery.com/jquery-3.5.1.min.js" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
 
     <script>
-      const MAX_INTENSITY = 0.9999999; // this is a work around for an A-Frame bug whereby sometimes an intensity of 1 will render as a solid colour with no texture
+      const MAX_INTENSITY = 0.9999; //0 this is a work around for an A-Frame bug whereby sometimes an intensity of 1 will render as a solid colour with no texture
       const CONNECTION_RETRY_INTERVAL = 5000;
-      const PHOSPHENE_STIM_DURATION = 100; //in ms.
+      const PHOSPHENE_STIM_RAMPUP_DURATION = 100; //in ms.
+      const PHOSPHENE_STIM_DURATION = 200; //in ms. Total stim duration = STIM_DURATION + STIM_RAMPUP_DURATION
       const PHOSPHENE_DECAY_DURATION = 400; //in ms.
 
       const MAP_8_HEXAGON = [ { id: 10001, x: -0.3, y: 0.15 }, { id: 10002, x: -0.3, y: -0.15 }, { id: 10003, x: -0.125, y: 0 }, { id: 10004, x: 0, y: 0.25 }, { id: 10005, x: 0, y: -0.25 }, { id: 10006, x: 0.125, y: 0 }, { id: 10007, x: 0.3, y: 0.15 }, { id: 10008, x: 0.3, y: -0.15 }];
@@ -29,7 +30,7 @@
           geometry: { primitive: 'circle', radius: '0.11' },
           material: { src: 'phosphene-texture5.png', color: 'white', opacity: MAX_INTENSITY },
           animation__noConnection: { property: 'material.opacity', from: -1, to: MAX_INTENSITY, dur: 3000, dir: 'alternate', easing: 'easeInOutSine', loop: true, enabled: false },
-          animation__stim: { property: 'material.opacity', from: 0, to: 0, dur: PHOSPHENE_STIM_DURATION, dir: 'normal', loop: false, startEvents: STIM_EVENT_NAME, enabled: true },
+          animation__stim: { property: 'material.opacity', from: 0, to: 0, dur: PHOSPHENE_STIM_RAMPUP_DURATION, dir: 'normal', loop: false, startEvents: STIM_EVENT_NAME, enabled: true },
           animation__decay: { property: 'material.opacity', from: MAX_INTENSITY, to: 0, dur: PHOSPHENE_DECAY_DURATION, dir: 'normal', loop: false, startEvents: DECAY_EVENT_NAME, pauseEvents: PAUSEDECAY_EVENT_NAME, enabled: true},
           position: { x:0, y:0, z:-1 } // Assumes x-range -0.5 <= x <= 0.5, and y-range -0.4 <= y <= 0.4
         },
@@ -58,6 +59,29 @@
   </body>
 
   <script>
+    /* 
+      The way the stim is designed to work is thus:
+        * A new stimulation payload is sent. This payload could come in one of two different types
+          1. It could be a full-phosphene payload, describing each phosphene and its current stimulation level for the current cycle
+          2. It could be a partial (delta) payload, describing only the relevant phosphenes for the current stimulation cycle.
+        * When the payload comes through, any phosphene that it either set to 0 stimulation level OR is not listed in the payload is set to decay
+        * All other phosphenes are set to stimulate at the requested level
+        * Stimulation
+          * Stimulation is the process of brightening a phosphene opacity from X to Y, and holding that Y brightness for a period of time.
+          * "Brightness" is mimicked by setting the opacity on a phosphene (0 = off, 1 = brightest)
+          * The duration of tweening the opacity from X to Y is the ramp-up duration
+          * The duration of holding the Y opacity is the stim duration
+          * Once the phosphene has been ramped-up and held that brightness for the stim duration, the system will trigger a decay on the phosphene
+          * If a phosphene is in the process of decaying and a new payload comes in to stimulate that phosphene, the decay is stopped and the phosphene will ramp and stim from the current brightness
+          * Terminology: Brightness == Opacity == Intensity. They are synonymous in this circumstance.
+        * Decaying
+          * Decaying is the process of darkening a phosphene opacity from Y to 0
+          * "Darkness" is mimicked by setting the opacity on a phosphene
+          * The duration of tweening the opacity from Y to X is the decay duration
+          * Once the phosphene is triggered to decay, it will tween on its own until it reaches opacity 0
+          
+    */
+
     function connect() {
       const ws = new WebSocket(`ws://${window.location.hostname}:8080`);
 
@@ -130,7 +154,9 @@
     // What to do when a stimulation ramp-up completes.
     function onStimComplete(e) {
       if (e.detail.name == 'animation__stim') {
-        decayPhosphene(e.srcElement);
+        setTimeout(() => {
+          decayPhosphene(e.srcElement);
+        }, PHOSPHENE_STIM_DURATION)
       }
     }
 
