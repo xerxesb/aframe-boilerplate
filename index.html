@@ -11,7 +11,9 @@
       const CONNECTION_RETRY_INTERVAL = 5000;
       const PHOSPHENE_STIM_DURATION = 100; //in ms.
       const PHOSPHENE_DECAY_DURATION = 400; //in ms.
-      const MAP_8_DIAMOND = [ { id: 10001, x: -0.3, y: 0.15 }, { id: 10002, x: -0.3, y: -0.15 }, { id: 10003, x: -0.125, y: 0 }, { id: 10004, x: 0, y: 0.25 }, { id: 10005, x: 0, y: -0.25 }, { id: 10006, x: 0.125, y: 0 }, { id: 10007, x: 0.3, y: 0.15 }, { id: 10008, x: 0.3, y: -0.15 }];
+
+      const MAP_8_HEXAGON = [ { id: 10001, x: -0.3, y: 0.15 }, { id: 10002, x: -0.3, y: -0.15 }, { id: 10003, x: -0.125, y: 0 }, { id: 10004, x: 0, y: 0.25 }, { id: 10005, x: 0, y: -0.25 }, { id: 10006, x: 0.125, y: 0 }, { id: 10007, x: 0.3, y: 0.15 }, { id: 10008, x: 0.3, y: -0.15 }];
+      const ACTIVE_MAP = MAP_8_HEXAGON;
 
       const STIM_EVENT_NAME = 'stim'
       const stimEvent = new Event(STIM_EVENT_NAME);
@@ -68,16 +70,20 @@
           return;
         }
 
-        const stimulated = parsedData;
+        const payload = parsedData;
 
-        // anything that's unstimulated should decay. If it's already decaying it will be left to complete its decay.
-        let unStimulated = MAP_8_DIAMOND.filter(x => stimulated.map(y => y.id).indexOf(x.id) == -1);
-        unStimulated.forEach(x => {
+        // If the payload is a delta (contains only new phosphenes for this cycle), then anything not in the payload is marked for decay
+        // If the payload is full set (contains all phosphenes in the array), then any phosphene with zero intensity is marked for decay
+        // If it's already decaying it will be left to complete its decay.
+        let decayList = ACTIVE_MAP.filter(x => payload.map(y => y.id).indexOf(x.id) == -1)
+                        .concat(payload.filter(x => x.int == 0));
+        decayList.forEach(x => {
           decayPhosphene(document.querySelector(`#p${x.id}`));
         })
 
-        // anything that's to be stimulated needs to have its decay stopped and stimulation started
-        stimulated.forEach(x => {
+        // anything in the payload with a non-zero intensity level should be stimulated
+        let stimList = payload.filter(x => x.int != 0);
+        stimList.forEach(x => {
           stimPhosphene(document.querySelector(`#p${x.id}`), x.int);
         })
 
@@ -142,7 +148,7 @@
     }
 
     $(document).ready((e) => { 
-      buildDisplayFromMap(MAP_8_DIAMOND);
+      buildDisplayFromMap(ACTIVE_MAP);
       connect();
     });
   </script>
