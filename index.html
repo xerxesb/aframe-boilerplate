@@ -7,6 +7,7 @@
     <script src="https://code.jquery.com/jquery-3.5.1.min.js" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
 
     <script>
+      const MAX_INTENSITY = 0.9999999; // this is a work around for an A-Frame bug whereby sometimes an intensity of 1 will render as a solid colour with no texture
       const CONNECTION_RETRY_INTERVAL = 5000;
       const PHOSPHENE_STIM_DURATION = 100; //in ms.
       const PHOSPHENE_DECAY_DURATION = 400; //in ms.
@@ -23,11 +24,11 @@
 
       AFRAME.registerPrimitive('a-phosphene', {
         defaultComponents: {
-          geometry: { primitive: 'circle', radius: '0.1' },
-          material: { src: 'phosphene-texture2.png', color: 'white', opacity: '0' },
-          animation__noConnection: { property: 'material.opacity', from: -1, to: 1, dur: 3000, dir: 'alternate', easing: 'easeInOutSine', loop: true, enabled: false },
+          geometry: { primitive: 'circle', radius: '0.11' },
+          material: { src: 'phosphene-texture5.png', color: 'white', opacity: MAX_INTENSITY },
+          animation__noConnection: { property: 'material.opacity', from: -1, to: MAX_INTENSITY, dur: 3000, dir: 'alternate', easing: 'easeInOutSine', loop: true, enabled: false },
           animation__stim: { property: 'material.opacity', from: 0, to: 0, dur: PHOSPHENE_STIM_DURATION, dir: 'normal', loop: false, startEvents: STIM_EVENT_NAME, enabled: true },
-          animation__decay: { property: 'material.opacity', from: 1, to: 0, dur: PHOSPHENE_DECAY_DURATION, dir: 'normal', loop: false, startEvents: DECAY_EVENT_NAME, pauseEvents: PAUSEDECAY_EVENT_NAME, enabled: true},
+          animation__decay: { property: 'material.opacity', from: MAX_INTENSITY, to: 0, dur: PHOSPHENE_DECAY_DURATION, dir: 'normal', loop: false, startEvents: DECAY_EVENT_NAME, pauseEvents: PAUSEDECAY_EVENT_NAME, enabled: true},
           position: { x:0, y:0, z:-1 } // Assumes x-range -0.5 <= x <= 0.5, and y-range -0.4 <= y <= 0.4
         },
 
@@ -58,7 +59,7 @@
     function connect() {
       const ws = new WebSocket(`ws://${window.location.hostname}:8080`);
 
-      ws.onmessage = (e) => { // Payload example format [{id: 10002, int: 0.2}, {id: 10005, int: 0.9}, {id: 10008, int: 0.2}, {id: 10001, int: 0}]
+      ws.onmessage = (e) => { // Payload example format [{"id":10004,"int":0.4},{"id":10006,"int":0.8},{"id":10007,"int":0.5},{"id":10008,"int":0.9}]
         try {
           var parsedData = JSON.parse(e.data);
         } catch (error) {
@@ -98,9 +99,10 @@
     }
 
     function stimPhosphene(phEl, intensity) {
+      let stimIntensity = Math.min(intensity, MAX_INTENSITY); // There is a weird bug in A-Frame that phosphene texture 4 will show a white circle when stimulated at intensity 1
       phEl.components.animation__stim.data.from = phEl.components.material.material.opacity; // set the start to the material's current opacity in case it's already in the middle of a tween
-      phEl.components.animation__stim.data.to = intensity;
-      phEl.dispatchEvent(pauseDecayEvent);
+      phEl.components.animation__stim.data.to = stimIntensity;
+      phEl.dispatchEvent(pauseDecayEvent); // if the phosphene is in the middle of a decay we want it to pause.
       phEl.dispatchEvent(stimEvent);
     }
     
@@ -119,6 +121,7 @@
       document.querySelector("a-noconnectionlabel").object3D.visible = shouldShow;
     }
 
+    // What to do when a stimulation ramp-up completes.
     function onStimComplete(e) {
       if (e.detail.name == 'animation__stim') {
         decayPhosphene(e.srcElement);
