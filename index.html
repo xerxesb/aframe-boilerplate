@@ -29,7 +29,7 @@
         defaultComponents: {
           geometry: { primitive: 'circle', radius: '0.11' },
           material: { src: 'phosphene-texture5.png', color: 'white', opacity: MAX_INTENSITY },
-          animation__noConnection: { property: 'material.opacity', from: -1, to: MAX_INTENSITY, dur: 3000, dir: 'alternate', easing: 'easeInOutSine', loop: true, enabled: false },
+          animation__pulse: { property: 'material.opacity', from: -1, to: MAX_INTENSITY, dur: 3000, dir: 'alternate', easing: 'easeInOutSine', loop: true, enabled: true },
           animation__stim: { property: 'material.opacity', from: 0, to: 0, dur: PHOSPHENE_STIM_RAMPUP_DURATION, dir: 'normal', loop: false, startEvents: STIM_EVENT_NAME, enabled: true },
           animation__decay: { property: 'material.opacity', from: MAX_INTENSITY, to: 0, dur: PHOSPHENE_DECAY_DURATION, dir: 'normal', loop: false, startEvents: DECAY_EVENT_NAME, pauseEvents: PAUSEDECAY_EVENT_NAME, enabled: true},
           position: { x:0, y:0, z:-1 } // Assumes x-range -0.5 <= x <= 0.5, and y-range -0.4 <= y <= 0.4
@@ -39,7 +39,7 @@
           intensity: 'material.opacity',
           x: 'position.x',
           y: 'position.y',
-          pulse: 'animation__noConnection.enabled'
+          pulse: 'animation__pulse.enabled'
         },
       })
 
