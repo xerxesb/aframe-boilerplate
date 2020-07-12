@@ -83,7 +83,7 @@
     */
 
     function connect() {
-      const ws = new WebSocket(`ws://${window.location.hostname}:8080`);
+      const ws = new WebSocket(`wss://${window.location.hostname}/data`);
 
       ws.onmessage = (e) => { // Payload example format [{"id":10004,"int":0.4},{"id":10006,"int":0.8},{"id":10007,"int":0.5},{"id":10008,"int":0.9}]
         try {
