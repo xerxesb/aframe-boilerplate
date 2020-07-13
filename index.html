@@ -153,6 +153,11 @@
         }
 
         let onCloseHandler = (e) => {
+            setTimeout(() => {
+                _ws.close();
+                _ws = null;
+                connect();
+            }, CONNECTION_RETRY_INTERVAL)
         }
 
         let onLogReceived = (e) => { // If a log message is coming from the server, only log it to local otherwise there could be an echo.
@@ -191,10 +196,12 @@
         }
 
         let onCloseHandler = (e) => {
-            _logger.log("Connection lost...Retrying in 5s...");
+            _logger.log(`Connection lost...Retrying in ${CONNECTION_RETRY_INTERVAL}s...`);
             _display.showNoConnectionLabel(true);
             _display.pulsePhosphenes(true);
             setTimeout(() => {
+                _ws.close();
+                _ws = null;
                 connect();
             }, CONNECTION_RETRY_INTERVAL)
         }
