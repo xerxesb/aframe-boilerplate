@@ -88,10 +88,29 @@
           
     */
 
-    let phospheneDataHandler = (id, display) => {
+    let consoleOutput = {
+        log: (x) => console.log(x),
+        warn: (x) => console.warn(x),
+        error: (x) => console.error(x)
+    }
+
+    let logger = (consoleLog) => {
+        let _console = consoleLog;
+
+        let log = (str) => {
+            _console.log(str);
+        }
+
+        return {
+            log: log
+        }
+    } 
+
+    let phospheneDataHandler = (id, display, logger) => {
         let _ws = null; // placeholder for websocket
         let _id = id;
         let _display = display;
+        let _logger = logger;
 
         let connect = () => {
             _ws = new WebSocket(`wss://${window.location.hostname}/data`);
@@ -101,7 +120,7 @@
         }
 
         let onOpenHandler = (e) => {
-            console.log("Connection established.");
+            _logger.log("Connection established.");
             _display.showNoConnectionLabel(false);
             _display.pulsePhosphenes(false);
             _ws.send(JSON.stringify({
@@ -110,7 +129,7 @@
         }
 
         let onCloseHandler = (e) => {
-            console.log("Connection lost...Retrying in 5s...");
+            _logger.log("Connection lost...Retrying in 5s...");
             _display.showNoConnectionLabel(true);
             _display.pulsePhosphenes(true);
             setTimeout(() => {
@@ -122,8 +141,8 @@
             try {
                 var parsedData = JSON.parse(e.data);
             } catch (error) {
-                console.log(e.data);
-                console.error(`Invalid JSON data "${e.data}"`)
+                _logger.log(e.data);
+                _logger.log(`Invalid JSON data "${e.data}"`)
                 return;
             }
 
@@ -206,9 +225,11 @@
     }
 
     $(document).ready((e) => {
+        let log = logger(consoleOutput);
+
         let id = navigator.userAgent; 
         let display = phospeheDisplay();
-        let dataHandler = phospheneDataHandler(id, display);
+        let dataHandler = phospheneDataHandler(id, display, log);
 
         let scene = document.querySelector("a-entity");
         display.buildDisplayFromMap(ACTIVE_MAP, scene);
