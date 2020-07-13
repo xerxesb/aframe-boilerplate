@@ -88,25 +88,87 @@
           
     */
 
-    let consoleOutput = {
-        log: (x) => console.log(x),
-        warn: (x) => console.warn(x),
-        error: (x) => console.error(x)
+    let consoleOutput = () => {
+        return {
+            log: (x) => console.log(x),
+            warn: (x) => console.warn(x),
+            error: (x) => console.error(x)
+        }
     }
 
-    let logger = (consoleLog) => {
-        let _console = consoleLog;
+    let remoteOutput = (remoteLogger) => {
+        return {
+            log: (x) => remoteLogger.log(x),
+            warn: (x) => remoteLogger.log(x),
+            error: (x) => remoteLogger.log(x)
+        }
+    }
+
+    let loggingHandler = (id, consoleOutput, remoteOutput) => {
+        let _id = id;
+        let _consoleOutput = consoleOutput;
+        let _remoteOutput = remoteOutput;
 
         let log = (str) => {
-            _console.log(str);
+            logLocal(str);
+            logRemote(str);
+        }
+
+        let logLocal = (str) => {
+            let msg = `[${id}] ${str}`;
+            _consoleOutput.log(msg);
+        }
+
+        let logRemote = (str) => {
+            let msg = `[${id}] ${str}`;
+            _remoteOutput.log(msg);
         }
 
         return {
-            log: log
+            log: log,
+            logLocal: logLocal,
+            logRemote: logRemote
         }
     } 
 
-    let phospheneDataHandler = (id, display, logger) => {
+    let wsLogDataHandler = (id) => {
+        let _ws = null; // placeholder for websocket
+        let _id = id;
+
+        let connect = () => {
+            _ws = new WebSocket(`wss://${window.location.hostname}/log`);
+            _ws.onmessage = onLogReceived;
+            _ws.onopen = onOpenHandler;
+            _ws.onclose = onCloseHandler;
+        }
+
+        let log = (str) => {
+            if (_ws == null) return;
+            _ws.send(JSON.stringify({
+                "msg": str
+            })); 
+        }
+
+        let onOpenHandler = (e) => {
+        }
+
+        let onCloseHandler = (e) => {
+        }
+
+        let onLogReceived = (e) => { // If a log message is coming from the server, only log it to local otherwise there could be an echo.
+            // _logger.logLocal(e.data);
+            // console.log(e.data); // This should be changed if possible to avoid the circular dependency
+        }
+
+        return {
+            connect: connect,
+            log: log,
+            warn: log,
+            error: log
+        }
+    }
+
+    let wsPhospheneDataHandler = (id, display, logger) => {
         let _ws = null; // placeholder for websocket
         let _id = id;
         let _display = display;
@@ -167,7 +229,7 @@
         }
     }
 
-    let phospeheDisplay = () => {
+    let phospheneDisplay = () => {
         let stimPhosphene = (phEl, intensity) => {
             let stimIntensity = Math.min(intensity, MAX_INTENSITY); // There is a weird bug in A-Frame that phosphene texture 4 will show a white circle when stimulated at intensity 1
             phEl.components.animation__stim.data.from = phEl.components.material.material.opacity; // set the start to the material's current opacity in case it's already in the middle of a tween
@@ -225,15 +287,21 @@
     }
 
     $(document).ready((e) => {
-        let log = logger(consoleOutput);
-
         let id = navigator.userAgent; 
-        let display = phospeheDisplay();
-        let dataHandler = phospheneDataHandler(id, display, log);
+
+        let consoleOutputObj = consoleOutput();
+        let logHandler = wsLogDataHandler(id);
+        let remoteOutputObj = remoteOutput(logHandler);
+        let logger = loggingHandler(id, consoleOutputObj, remoteOutputObj);
+
+        let display = phospheneDisplay();
+        let dataHandler = wsPhospheneDataHandler(id, display, logger);
 
         let scene = document.querySelector("a-entity");
         display.buildDisplayFromMap(ACTIVE_MAP, scene);
 
+
+        logHandler.connect();
         dataHandler.connect();
     });
 </script>
