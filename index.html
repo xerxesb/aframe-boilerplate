@@ -1,64 +1,71 @@
 <!DOCTYPE html>
 <html>
-  <head>
+
+<head>
     <meta charset="utf-8">
     <title>DimSim - a phosphene simulator for mobile phones</title>
-    <script src="https://cdn.jsdelivr.net/gh/aframevr/aframe@1f00d0beadf87bad7d275c174616e048f8b573fc/dist/aframe-master.min.js"></script>
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
+    <script
+        src="https://cdn.jsdelivr.net/gh/aframevr/aframe@1f00d0beadf87bad7d275c174616e048f8b573fc/dist/aframe-master.min.js">
+    </script>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"
+        integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
 
     <script>
-      const MAX_INTENSITY = 0.9999; //0 this is a work around for an A-Frame bug whereby sometimes an intensity of 1 will render as a solid colour with no texture
-      const CONNECTION_RETRY_INTERVAL = 5000;
-      const PHOSPHENE_STIM_RAMPUP_DURATION = 100; //in ms.
-      const PHOSPHENE_STIM_DURATION = 200; //in ms. Total stim duration = STIM_DURATION + STIM_RAMPUP_DURATION
-      const PHOSPHENE_DECAY_DURATION = 400; //in ms.
+        const MAX_INTENSITY =
+        0.9999; //0 this is a work around for an A-Frame bug whereby sometimes an intensity of 1 will render as a solid colour with no texture
+        const CONNECTION_RETRY_INTERVAL = 5000;
+        const PHOSPHENE_STIM_RAMPUP_DURATION = 100; //in ms.
+        const PHOSPHENE_STIM_DURATION = 200; //in ms. Total stim duration = STIM_DURATION + STIM_RAMPUP_DURATION
+        const PHOSPHENE_DECAY_DURATION = 400; //in ms.
 
-      const MAP_8_HEXAGON = [ { id: 10001, x: -0.3, y: 0.15 }, { id: 10002, x: -0.3, y: -0.15 }, { id: 10003, x: -0.125, y: 0 }, { id: 10004, x: 0, y: 0.25 }, { id: 10005, x: 0, y: -0.25 }, { id: 10006, x: 0.125, y: 0 }, { id: 10007, x: 0.3, y: 0.15 }, { id: 10008, x: 0.3, y: -0.15 }];
-      const ACTIVE_MAP = MAP_8_HEXAGON;
+        const MAP_8_HEXAGON = [{ id: 10001, x: -0.3, y: 0.15 }, { id: 10002, x: -0.3, y: -0.15 }, { id: 10003, x: -0.125, y: 0 }, { id: 10004, x: 0, y: 0.25 }, { id: 10005, x: 0, y: -0.25 }, { id: 10006, x: 0.125, y: 0 }, { id: 10007, x: 0.3, y: 0.15 }, { id: 10008, x: 0.3, y: -0.15 }];
+        const ACTIVE_MAP = MAP_8_HEXAGON;
 
-      const STIM_EVENT_NAME = 'stim'
-      const stimEvent = new Event(STIM_EVENT_NAME);
+        const STIM_EVENT_NAME = 'stim'
+        const stimEvent = new Event(STIM_EVENT_NAME);
 
-      const DECAY_EVENT_NAME = 'decay'
-      const decayEvent = new Event(DECAY_EVENT_NAME);
+        const DECAY_EVENT_NAME = 'decay'
+        const decayEvent = new Event(DECAY_EVENT_NAME);
 
-      const PAUSEDECAY_EVENT_NAME = 'pause_decay';
-      const pauseDecayEvent = new Event(PAUSEDECAY_EVENT_NAME);
+        const PAUSEDECAY_EVENT_NAME = 'pause_decay';
+        const pauseDecayEvent = new Event(PAUSEDECAY_EVENT_NAME);
 
-      AFRAME.registerPrimitive('a-phosphene', {
-        defaultComponents: {
-          geometry: { primitive: 'circle', radius: '0.11' },
-          material: { src: 'phosphene-texture5.png', color: 'white', opacity: MAX_INTENSITY },
-          animation__pulse: { property: 'material.opacity', from: -1, to: MAX_INTENSITY, dur: 3000, dir: 'alternate', easing: 'easeInOutSine', loop: true, enabled: true },
-          animation__stim: { property: 'material.opacity', from: 0, to: 0, dur: PHOSPHENE_STIM_RAMPUP_DURATION, dir: 'normal', loop: false, startEvents: STIM_EVENT_NAME, enabled: true },
-          animation__decay: { property: 'material.opacity', from: MAX_INTENSITY, to: 0, dur: PHOSPHENE_DECAY_DURATION, dir: 'normal', loop: false, startEvents: DECAY_EVENT_NAME, pauseEvents: PAUSEDECAY_EVENT_NAME, enabled: true},
-          position: { x:0, y:0, z:-1 } // Assumes x-range -0.5 <= x <= 0.5, and y-range -0.4 <= y <= 0.4
-        },
+        AFRAME.registerPrimitive('a-phosphene', {
+            defaultComponents: {
+                geometry: { primitive: 'circle', radius: '0.11' },
+                material: { src: 'phosphene-texture5.png', color: 'white', opacity: MAX_INTENSITY },
+                animation__pulse: { property: 'material.opacity', from: -1, to: MAX_INTENSITY, dur: 3000, dir: 'alternate', easing: 'easeInOutSine', loop: true, enabled: true },
+                animation__stim: { property: 'material.opacity', from: 0, to: 0, dur: PHOSPHENE_STIM_RAMPUP_DURATION, dir: 'normal', loop: false, startEvents: STIM_EVENT_NAME, enabled: true },
+                animation__decay: { property: 'material.opacity', from: MAX_INTENSITY, to: 0, dur: PHOSPHENE_DECAY_DURATION, dir: 'normal', loop: false, startEvents: DECAY_EVENT_NAME, pauseEvents: PAUSEDECAY_EVENT_NAME, enabled: true },
+                position: { x: 0, y: 0, z: -1 } // Assumes x-range -0.5 <= x <= 0.5, and y-range -0.4 <= y <= 0.4
+            },
 
-        mappings: {
-          intensity: 'material.opacity',
-          x: 'position.x',
-          y: 'position.y',
-          pulse: 'animation__pulse.enabled'
-        },
-      })
+            mappings: {
+                intensity: 'material.opacity',
+                x: 'position.x',
+                y: 'position.y',
+                pulse: 'animation__pulse.enabled'
+            },
+        })
 
-      AFRAME.registerPrimitive('a-noconnectionlabel', {
-        defaultComponents: {
-          position: { x: -0.30, y: 0.0, z:-1.0 },
-          text: { anchor: "left", width: "2", color: "#BB3532", value: "No connection..." }
-        }
-      })
+        AFRAME.registerPrimitive('a-noconnectionlabel', {
+            defaultComponents: {
+                position: { x: -0.30, y: 0.0, z: -1.0 },
+                text: { anchor: "left", width: "2", color: "#BB3532", value: "No connection..." }
+            }
+        })
     </script>
-  </head>
-  <body>
-    <a-scene background="color:black">
-      <a-entity camera look-controls="enabled: false; touchEnabled: false; magicWindowTrackingEnabled: false"></a-entity>
-       <!-- Scene is dynamically generated from the specified map. -->
-    </a-scene>
-  </body>
+</head>
 
-  <script>
+<body>
+    <a-scene background="color:black">
+        <a-entity camera look-controls="enabled: false; touchEnabled: false; magicWindowTrackingEnabled: false">
+        </a-entity>
+        <!-- Scene is dynamically generated from the specified map. -->
+    </a-scene>
+</body>
+
+<script>
     /* 
       The way the stim is designed to work is thus:
         * A new stimulation payload is sent. This payload could come in one of two different types
@@ -82,100 +89,117 @@
           
     */
 
-    function connect() {
-      const ws = new WebSocket(`wss://${window.location.hostname}/data`);
+    let phospheneDataHandler = () => {
+        let ws = null; // placeholder for websocket
 
-      ws.onmessage = (e) => { // Payload example format [{"id":10004,"int":0.4},{"id":10006,"int":0.8},{"id":10007,"int":0.5},{"id":10008,"int":0.9}]
-        try {
-          var parsedData = JSON.parse(e.data);
-        } catch (error) {
-          console.log(e.data);
-          console.error(`Invalid JSON data "${e.data}"`)
-          return;
+        let connect = () => {
+            ws = new WebSocket(`wss://${window.location.hostname}/data`);
+            ws.onmessage = onPayloadReceived;
+            ws.onopen = onOpenHandler;
+            ws.onclose = onCloseHandler;
         }
 
-        const payload = parsedData;
+        let onOpenHandler = (e) => {
+            console.log("Connection established.");
+            showNoConnectionLabel(false);
+            pulsePhosphenes(false);
+            ws.send(JSON.stringify({
+                "client": navigator.userAgent
+            }));
+        }
 
-        // If the payload is a delta (contains only new phosphenes for this cycle), then anything not in the payload is marked for decay
-        // If the payload is full set (contains all phosphenes in the array), then any phosphene with zero intensity is marked for decay
-        // If it's already decaying it will be left to complete its decay.
-        let decayList = ACTIVE_MAP.filter(x => payload.map(y => y.id).indexOf(x.id) == -1)
-                        .concat(payload.filter(x => x.int == 0));
-        decayList.forEach(x => {
-          decayPhosphene(document.querySelector(`#p${x.id}`));
-        })
+        let onCloseHandler = (e) => {
+            console.log("Connection lost...Retrying in 5s...");
+            showNoConnectionLabel(true);
+            pulsePhosphenes(true);
+            setTimeout(() => {
+                connect();
+            }, CONNECTION_RETRY_INTERVAL)
+        }
 
-        // anything in the payload with a non-zero intensity level should be stimulated
-        let stimList = payload.filter(x => x.int != 0);
-        stimList.forEach(x => {
-          stimPhosphene(document.querySelector(`#p${x.id}`), x.int);
-        })
+        let onPayloadReceived = (e) => { // Payload example format [{"id":10004,"int":0.4},{"id":10006,"int":0.8},{"id":10007,"int":0.5},{"id":10008,"int":0.9}]
+            try {
+                var parsedData = JSON.parse(e.data);
+            } catch (error) {
+                console.log(e.data);
+                console.error(`Invalid JSON data "${e.data}"`)
+                return;
+            }
 
-      }
+            const payload = parsedData;
 
-      ws.onopen = (e) => { // when the client connects
-        console.log("Connection established.");
-        showNoConnectionLabel(false);
-        pulsePhosphenes(false);
-        ws.send(JSON.stringify({ "client": navigator.userAgent }));
-      }
+            // If the payload is a delta (contains only new phosphenes for this cycle), then anything not in the payload is marked for decay
+            // If the payload is full set (contains all phosphenes in the array), then any phosphene with zero intensity is marked for decay
+            // If it's already decaying it will be left to complete its decay.
+            let decayList = ACTIVE_MAP.filter(x => payload.map(y => y.id).indexOf(x.id) == -1)
+                                      .concat(payload.filter(x => x.int == 0));
+            decayList.forEach(x => { decayPhosphene(document.querySelector(`#p${x.id}`)); })
 
-      ws.onclose = (e) => { // when the client disconnects
-        console.log("Connection lost...Retrying in 5s...");
-        showNoConnectionLabel(true);
-        pulsePhosphenes(true);
-        setTimeout(() => { connect(); }, CONNECTION_RETRY_INTERVAL)
-      }
+            // anything in the payload with a non-zero intensity level should be stimulated
+            let stimList = payload.filter(x => x.int != 0);
+            stimList.forEach(x => {
+                stimPhosphene(document.querySelector(`#p${x.id}`), x.int);
+            })
+        }
+
+        return {
+            connect: connect
+        }
     }
 
     function stimPhosphene(phEl, intensity) {
-      let stimIntensity = Math.min(intensity, MAX_INTENSITY); // There is a weird bug in A-Frame that phosphene texture 4 will show a white circle when stimulated at intensity 1
-      phEl.components.animation__stim.data.from = phEl.components.material.material.opacity; // set the start to the material's current opacity in case it's already in the middle of a tween
-      phEl.components.animation__stim.data.to = stimIntensity;
-      phEl.dispatchEvent(pauseDecayEvent); // if the phosphene is in the middle of a decay we want it to pause.
-      phEl.dispatchEvent(stimEvent);
+        let stimIntensity = Math.min(intensity, MAX_INTENSITY); // There is a weird bug in A-Frame that phosphene texture 4 will show a white circle when stimulated at intensity 1
+        phEl.components.animation__stim.data.from = phEl.components.material.material.opacity; // set the start to the material's current opacity in case it's already in the middle of a tween
+        phEl.components.animation__stim.data.to = stimIntensity;
+        phEl.dispatchEvent(pauseDecayEvent); // if the phosphene is in the middle of a decay we want it to pause.
+        phEl.dispatchEvent(stimEvent);
     }
-    
-    function decayPhosphene(phEl) {
-      if (phEl.components.animation__decay.animationIsPlaying) { return; } // Currently decaying...Don't interrupt
 
-      phEl.components.animation__decay.data.from = phEl.components.material.material.opacity; // set the start to the material's current opacity in case it's already in the middle of a tween
-      phEl.dispatchEvent(decayEvent);
+    function decayPhosphene(phEl) {
+        if (phEl.components.animation__decay.animationIsPlaying) {
+            return;
+        } // Currently decaying...Don't interrupt
+
+        phEl.components.animation__decay.data.from = phEl.components.material.material
+        .opacity; // set the start to the material's current opacity in case it's already in the middle of a tween
+        phEl.dispatchEvent(decayEvent);
     }
 
     function pulsePhosphenes(shouldPulse) {
-      document.querySelectorAll('a-phosphene').forEach(el => el.setAttribute('pulse', shouldPulse));
+        document.querySelectorAll('a-phosphene').forEach(el => el.setAttribute('pulse', shouldPulse));
     }
 
     function showNoConnectionLabel(shouldShow) {
-      document.querySelector("a-noconnectionlabel").object3D.visible = shouldShow;
+        document.querySelector("a-noconnectionlabel").object3D.visible = shouldShow;
     }
 
     // What to do when a stimulation ramp-up completes.
     function onStimComplete(e) {
-      if (e.detail.name == 'animation__stim') {
-        setTimeout(() => {
-          decayPhosphene(e.srcElement);
-        }, PHOSPHENE_STIM_DURATION)
-      }
+        if (e.detail.name == 'animation__stim') {
+            setTimeout(() => {
+                decayPhosphene(e.srcElement);
+            }, PHOSPHENE_STIM_DURATION)
+        }
     }
 
     function buildDisplayFromMap(map) {
-      let scene = document.querySelector("a-entity");
-      map.forEach(ph => {
-        let o = document.createElement('a-phosphene');
-        o.setAttribute("id", "p" + ph.id);
-        o.setAttribute("x", ph.x);
-        o.setAttribute("y", ph.y);
-        o.addEventListener('animationcomplete', onStimComplete);
-        scene.append(o);
-      })
-      scene.append(document.createElement('a-noconnectionlabel'));
+        let scene = document.querySelector("a-entity");
+        map.forEach(ph => {
+            let o = document.createElement('a-phosphene');
+            o.setAttribute("id", "p" + ph.id);
+            o.setAttribute("x", ph.x);
+            o.setAttribute("y", ph.y);
+            o.addEventListener('animationcomplete', onStimComplete);
+            scene.append(o);
+        })
+        scene.append(document.createElement('a-noconnectionlabel'));
     }
 
-    $(document).ready((e) => { 
-      buildDisplayFromMap(ACTIVE_MAP);
-      connect();
+    $(document).ready((e) => {
+        buildDisplayFromMap(ACTIVE_MAP);
+        let dataHandler = phospheneDataHandler();
+        dataHandler.connect();
     });
-  </script>
+</script>
+
 </html>
