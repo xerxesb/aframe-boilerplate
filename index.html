@@ -11,8 +11,7 @@
         integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
 
     <script>
-        const MAX_INTENSITY =
-        0.9999; //0 this is a work around for an A-Frame bug whereby sometimes an intensity of 1 will render as a solid colour with no texture
+        const MAX_INTENSITY = 0.9999; //0 this is a work around for an A-Frame bug whereby sometimes an intensity of 1 will render as a solid colour with no texture
         const CONNECTION_RETRY_INTERVAL = 5000;
         const PHOSPHENE_STIM_RAMPUP_DURATION = 100; //in ms.
         const PHOSPHENE_STIM_DURATION = 200; //in ms. Total stim duration = STIM_DURATION + STIM_RAMPUP_DURATION
@@ -89,29 +88,31 @@
           
     */
 
-    let phospheneDataHandler = () => {
-        let ws = null; // placeholder for websocket
+    let phospheneDataHandler = (id, display) => {
+        let _ws = null; // placeholder for websocket
+        let _id = id;
+        let _display = display;
 
         let connect = () => {
-            ws = new WebSocket(`wss://${window.location.hostname}/data`);
-            ws.onmessage = onPayloadReceived;
-            ws.onopen = onOpenHandler;
-            ws.onclose = onCloseHandler;
+            _ws = new WebSocket(`wss://${window.location.hostname}/data`);
+            _ws.onmessage = onPayloadReceived;
+            _ws.onopen = onOpenHandler;
+            _ws.onclose = onCloseHandler;
         }
 
         let onOpenHandler = (e) => {
             console.log("Connection established.");
-            showNoConnectionLabel(false);
-            pulsePhosphenes(false);
-            ws.send(JSON.stringify({
-                "client": navigator.userAgent
+            _display.showNoConnectionLabel(false);
+            _display.pulsePhosphenes(false);
+            _ws.send(JSON.stringify({
+                "client": _id
             }));
         }
 
         let onCloseHandler = (e) => {
             console.log("Connection lost...Retrying in 5s...");
-            showNoConnectionLabel(true);
-            pulsePhosphenes(true);
+            _display.showNoConnectionLabel(true);
+            _display.pulsePhosphenes(true);
             setTimeout(() => {
                 connect();
             }, CONNECTION_RETRY_INTERVAL)
@@ -133,12 +134,12 @@
             // If it's already decaying it will be left to complete its decay.
             let decayList = ACTIVE_MAP.filter(x => payload.map(y => y.id).indexOf(x.id) == -1)
                                       .concat(payload.filter(x => x.int == 0));
-            decayList.forEach(x => { decayPhosphene(document.querySelector(`#p${x.id}`)); })
+            decayList.forEach(x => { _display.decayPhosphene(document.querySelector(`#p${x.id}`)); })
 
             // anything in the payload with a non-zero intensity level should be stimulated
             let stimList = payload.filter(x => x.int != 0);
             stimList.forEach(x => {
-                stimPhosphene(document.querySelector(`#p${x.id}`), x.int);
+                _display.stimPhosphene(document.querySelector(`#p${x.id}`), x.int);
             })
         }
 
@@ -147,57 +148,71 @@
         }
     }
 
-    function stimPhosphene(phEl, intensity) {
-        let stimIntensity = Math.min(intensity, MAX_INTENSITY); // There is a weird bug in A-Frame that phosphene texture 4 will show a white circle when stimulated at intensity 1
-        phEl.components.animation__stim.data.from = phEl.components.material.material.opacity; // set the start to the material's current opacity in case it's already in the middle of a tween
-        phEl.components.animation__stim.data.to = stimIntensity;
-        phEl.dispatchEvent(pauseDecayEvent); // if the phosphene is in the middle of a decay we want it to pause.
-        phEl.dispatchEvent(stimEvent);
-    }
+    let phospeheDisplay = () => {
+        let stimPhosphene = (phEl, intensity) => {
+            let stimIntensity = Math.min(intensity, MAX_INTENSITY); // There is a weird bug in A-Frame that phosphene texture 4 will show a white circle when stimulated at intensity 1
+            phEl.components.animation__stim.data.from = phEl.components.material.material.opacity; // set the start to the material's current opacity in case it's already in the middle of a tween
+            phEl.components.animation__stim.data.to = stimIntensity;
+            phEl.dispatchEvent(pauseDecayEvent); // if the phosphene is in the middle of a decay we want it to pause.
+            phEl.dispatchEvent(stimEvent);
+        }
 
-    function decayPhosphene(phEl) {
-        if (phEl.components.animation__decay.animationIsPlaying) {
-            return;
-        } // Currently decaying...Don't interrupt
+        let decayPhosphene = (phEl) => {
+            if (phEl.components.animation__decay.animationIsPlaying) {
+                return;
+            } // Currently decaying...Don't interrupt
 
-        phEl.components.animation__decay.data.from = phEl.components.material.material
-        .opacity; // set the start to the material's current opacity in case it's already in the middle of a tween
-        phEl.dispatchEvent(decayEvent);
-    }
+            phEl.components.animation__decay.data.from = phEl.components.material.material
+            .opacity; // set the start to the material's current opacity in case it's already in the middle of a tween
+            phEl.dispatchEvent(decayEvent);
+        }
 
-    function pulsePhosphenes(shouldPulse) {
-        document.querySelectorAll('a-phosphene').forEach(el => el.setAttribute('pulse', shouldPulse));
-    }
+        let pulsePhosphenes = (shouldPulse) => {
+            document.querySelectorAll('a-phosphene').forEach(el => el.setAttribute('pulse', shouldPulse));
+        }
 
-    function showNoConnectionLabel(shouldShow) {
-        document.querySelector("a-noconnectionlabel").object3D.visible = shouldShow;
-    }
+        let showNoConnectionLabel = (shouldShow) => {
+            document.querySelector("a-noconnectionlabel").object3D.visible = shouldShow;
+        }
 
-    // What to do when a stimulation ramp-up completes.
-    function onStimComplete(e) {
-        if (e.detail.name == 'animation__stim') {
-            setTimeout(() => {
-                decayPhosphene(e.srcElement);
-            }, PHOSPHENE_STIM_DURATION)
+        let buildDisplayFromMap = (map, scene) => {
+            scene.childNodes.forEach(x => x.parentNode.remove(x)); // clear the scene 
+            map.forEach(ph => {
+                let o = document.createElement('a-phosphene');
+                o.setAttribute("id", "p" + ph.id);
+                o.setAttribute("x", ph.x);
+                o.setAttribute("y", ph.y);
+                o.addEventListener('animationcomplete', onStimComplete);
+                scene.append(o);
+            })
+            scene.append(document.createElement('a-noconnectionlabel'));
+        }
+        // What to do when a stimulation ramp-up completes.
+        let onStimComplete = (e) => {
+            if (e.detail.name == 'animation__stim') {
+                setTimeout(() => {
+                    decayPhosphene(e.srcElement);
+                }, PHOSPHENE_STIM_DURATION)
+            }
+        }
+        
+        return {
+            stimPhosphene: stimPhosphene,
+            decayPhosphene: decayPhosphene,
+            pulsePhosphenes: pulsePhosphenes,
+            showNoConnectionLabel: showNoConnectionLabel,
+            buildDisplayFromMap: buildDisplayFromMap
         }
     }
 
-    function buildDisplayFromMap(map) {
-        let scene = document.querySelector("a-entity");
-        map.forEach(ph => {
-            let o = document.createElement('a-phosphene');
-            o.setAttribute("id", "p" + ph.id);
-            o.setAttribute("x", ph.x);
-            o.setAttribute("y", ph.y);
-            o.addEventListener('animationcomplete', onStimComplete);
-            scene.append(o);
-        })
-        scene.append(document.createElement('a-noconnectionlabel'));
-    }
-
     $(document).ready((e) => {
-        buildDisplayFromMap(ACTIVE_MAP);
-        let dataHandler = phospheneDataHandler();
+        let id = navigator.userAgent; 
+        let display = phospeheDisplay();
+        let dataHandler = phospheneDataHandler(id, display);
+
+        let scene = document.querySelector("a-entity");
+        display.buildDisplayFromMap(ACTIVE_MAP, scene);
+
         dataHandler.connect();
     });
 </script>
