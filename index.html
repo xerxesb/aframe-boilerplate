@@ -128,6 +128,19 @@
         }
     } 
 
+    let nullLogDataHandler = (id) => {
+        let log = (str) => {
+            console.log(str)
+        }
+
+        return {
+            connect: () => { },
+            log: log,
+            warn: log,
+            error: log
+        }
+    }
+
     let wsLogDataHandler = (id) => {
         let _ws = null; // placeholder for websocket
         let _id = id;
@@ -312,7 +325,7 @@
         let id = navigator.userAgent; 
 
         let consoleOutputObj = consoleOutput();
-        let logHandler = wsLogDataHandler(id);
+        let logHandler = nullLogDataHandler(); // wsLogDataHandler(id);
         let remoteOutputObj = remoteOutput(logHandler);
         let logger = loggingHandler(id, consoleOutputObj, remoteOutputObj);
 
