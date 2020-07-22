@@ -233,7 +233,7 @@
                 return;
             }
 
-            const payload = parsedData;
+            const payload = Object.keys(parsedData.dimsim).map(id => { return { "id" : id, "int" : parsedData.dimsim[id] } });
 
             // If the payload is a delta (contains only new phosphenes for this cycle), then anything not in the payload is marked for decay
             // If the payload is full set (contains all phosphenes in the array), then any phosphene with zero intensity is marked for decay
