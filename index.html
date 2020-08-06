@@ -226,14 +226,15 @@
 
         let onMessageHandler = (e) => { // Payload example format [{"id":10004,"int":0.4},{"id":10006,"int":0.8},{"id":10007,"int":0.5},{"id":10008,"int":0.9}]
             try {
-                var parsedData = JSON.parse(e.data);
+                var data = JSON.parse(e.data);
             } catch (error) {
                 _logger.log(e.data);
                 _logger.log(`Invalid JSON data "${e.data}"`)
                 return;
             }
 
-            const payload = Object.keys(parsedData.dimsim).map(id => { return { "id" : id, "int" : parsedData.dimsim[id] } });
+            var phosphene_data = data.dimsim.phosphene_ints;
+            const payload = Object.keys(phosphene_data).map(id => { return { "id" : id, "int" : phosphene_data[id] } });
 
             // If the payload is a delta (contains only new phosphenes for this cycle), then anything not in the payload is marked for decay
             // If the payload is full set (contains all phosphenes in the array), then any phosphene with zero intensity is marked for decay
