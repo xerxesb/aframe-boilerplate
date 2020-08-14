@@ -13,7 +13,10 @@
         const PHOSPHENE_STIM_RAMPUP_DURATION = 100; //in ms.
         const PHOSPHENE_STIM_DURATION = 200; //in ms. Total stim duration = STIM_DURATION + STIM_RAMPUP_DURATION
         const PHOSPHENE_DECAY_DURATION = 400; //in ms.
+        const SCENE_WIDTH = 1 // x-range -0.5 <= x <= 0.5 (determined by quick testing in the VR setup)
+        const SCENE_HEIGHT = 0.8 // y-range -0.4 <= y <= 0.4 (determined by quick testing in the VR setup)
 
+        const MAP_PARAMS = { radius: 0.11, texture: 'phosphene-texture5.png' };
         const MAP_8_HEXAGON = [{ id: 10001, x: -0.3, y: 0.15 }, { id: 10002, x: -0.3, y: -0.15 }, { id: 10003, x: -0.125, y: 0 }, { id: 10004, x: 0, y: 0.25 }, { id: 10005, x: 0, y: -0.25 }, { id: 10006, x: 0.125, y: 0 }, { id: 10007, x: 0.3, y: 0.15 }, { id: 10008, x: 0.3, y: -0.15 }];
         const ACTIVE_MAP = MAP_8_HEXAGON;
 
@@ -26,17 +29,20 @@
         const PAUSEDECAY_EVENT_NAME = 'pause_decay';
         const pauseDecayEvent = new Event(PAUSEDECAY_EVENT_NAME);
 
+
         AFRAME.registerPrimitive('a-phosphene', {
             defaultComponents: {
-                geometry: { primitive: 'circle', radius: '0.11' },
-                material: { src: 'phosphene-texture5.png', color: 'white', opacity: MAX_INTENSITY },
+                geometry: { primitive: 'circle', radius: MAP_PARAMS.radius },
+                material: { src: MAP_PARAMS.texture, color: 'white', opacity: MAX_INTENSITY },
                 animation__pulse: { property: 'material.opacity', from: -1, to: MAX_INTENSITY, dur: 3000, dir: 'alternate', easing: 'easeInOutSine', loop: true, enabled: true },
                 animation__stim: { property: 'material.opacity', from: 0, to: 0, dur: PHOSPHENE_STIM_RAMPUP_DURATION, dir: 'normal', loop: false, startEvents: STIM_EVENT_NAME, enabled: true },
                 animation__decay: { property: 'material.opacity', from: MAX_INTENSITY, to: 0, dur: PHOSPHENE_DECAY_DURATION, dir: 'normal', loop: false, startEvents: DECAY_EVENT_NAME, pauseEvents: PAUSEDECAY_EVENT_NAME, enabled: true },
-                position: { x: 0, y: 0, z: -1 } // Assumes x-range -0.5 <= x <= 0.5, and y-range -0.4 <= y <= 0.4
+                position: { x: 0, y: 0, z: -1 } // Assumes scene width = -0.5 to 0.5, height = -0.4 to 0.4
             },
 
             mappings: {
+                radius: 'geometry.radius',
+                texture: 'material.src',
                 intensity: 'material.opacity',
                 x: 'position.x',
                 y: 'position.y',
@@ -55,9 +61,11 @@
 
 <body>
     <a-scene background="color:black">
-        <a-entity camera look-controls="enabled: false; touchEnabled: false; magicWindowTrackingEnabled: false">
-        </a-entity>
-        <!-- Scene is dynamically generated from the specified map. -->
+        <a-scene>
+            <a-entity camera look-controls="enabled: false; touchEnabled: false; magicWindowTrackingEnabled: false"> </a-entity>
+            <!-- Phosphenes are dynamically generated from the specified map. -->
+        </a-scene>
+        <a-noconnectionlabel />
     </a-scene>
 </body>
 
@@ -228,7 +236,7 @@
             try {
                 var data = JSON.parse(e.data);
             } catch (error) {
-                _logger.log(e.data);
+                _logger.log(error);
                 _logger.log(`Invalid JSON data "${e.data}"`)
                 return;
             }
@@ -265,6 +273,67 @@
         }
     }
 
+    let wsControllerHandler = (id, display) => {
+        const EVENT_NEWCONFIG = "new_configuration"; // received when a new configuration is sent from server
+
+        let _id = id;
+        let _display = display
+
+        let _ws = null; // placeholder for websocket
+        let _reconnectionHandle = null;
+
+        let connect = () => {
+            _ws = new WebSocket(`wss://${window.location.hostname}/control`);
+            _ws.onopen = onOpenHandler;
+            _ws.onclose = onCloseHandler;
+            _ws.onmessage = onMessageHandler;
+        }
+
+        let onOpenHandler = (e) => {
+            clearInterval(_reconnectionHandle)
+            _reconnectionHandle = null;
+
+            console.log("Connection established.");
+        }
+
+        let onCloseHandler = (e) => {
+            console.log(`Connection lost...Retrying in ${CONNECTION_RETRY_INTERVAL}s...`);
+            reconnect();
+        }
+
+        let onMessageHandler = (e) => {
+            try {
+                let msgObj = JSON.parse(e.data);
+                if (msgObj.event == EVENT_NEWCONFIG) {
+                    let config = JSON.parse(msgObj.pancake_config);
+                    if (config.output_devices.dimsim) {
+                        console.log('Updated DimSim map found - reloading now...');
+                        _display.buildNewDisplay(config.output_devices.dimsim);
+                        _display.showNoConnectionLabel(false);
+                    }
+                }
+            } catch (error) {
+                console.log(error);
+                console.log(`Invalid JSON data "${e.data}"`)
+                return;
+            }
+        }
+
+        let reconnect = () => {
+            if (_reconnectionHandle == null) {
+                _ws.close();
+                _ws = null;
+                _reconnectionHandle = setInterval(() => {
+                    connect();
+                }, CONNECTION_RETRY_INTERVAL)
+            }
+        }
+
+        return {
+            connect: connect,
+        }
+    }
+
     let phospheneDisplay = () => {
         let stimPhosphene = (phEl, intensity) => {
             let stimIntensity = Math.min(intensity, MAX_INTENSITY); // There is a weird bug in A-Frame that phosphene texture 4 will show a white circle when stimulated at intensity 1
@@ -275,12 +344,13 @@
         }
 
         let decayPhosphene = (phEl) => {
+            if (phEl == null) { throw "Unknown phosphene! The active map is not in sync with the server"}
             if (phEl.components.animation__decay.animationIsPlaying) {
                 return;
             } // Currently decaying...Don't interrupt
 
-            phEl.components.animation__decay.data.from = phEl.components.material.material
-            .opacity; // set the start to the material's current opacity in case it's already in the middle of a tween
+            // set the start to the material's current opacity in case it's already in the middle of a tween
+            phEl.components.animation__decay.data.from = phEl.components.material.material.opacity; 
             phEl.dispatchEvent(decayEvent);
         }
 
@@ -293,17 +363,37 @@
         }
 
         let buildDisplayFromMap = (map, scene) => {
-            scene.childNodes.forEach(x => x.parentNode.remove(x)); // clear the scene 
+            $(scene).empty(); // Clear the scene before creating new phosphenes
             map.forEach(ph => {
                 let o = document.createElement('a-phosphene');
+                o.setAttribute("radius", MAP_PARAMS.radius);
+                o.setAttribute("texture", MAP_PARAMS.texture);
                 o.setAttribute("id", "p" + ph.id);
                 o.setAttribute("x", ph.x);
                 o.setAttribute("y", ph.y);
                 o.addEventListener('animationcomplete', onStimComplete);
                 scene.append(o);
             })
-            scene.append(document.createElement('a-noconnectionlabel'));
         }
+
+        let buildNewDisplay = (config) => {
+            MAP_PARAMS.radius = config.radius;
+            MAP_PARAMS.texture = config.texture;
+
+            let roiAzi = config.roi.width;
+            let roiEle = config.roi.height;
+
+            let map = config.phosphenes.map(ph => {
+                let id = ph.id;
+                let x = (((ph.azimuth / roiAzi) + 0.5) * SCENE_WIDTH) - (SCENE_WIDTH / 2);
+                let y = (SCENE_HEIGHT / 2) - (((ph.elevation / roiEle) - 0.5) * SCENE_HEIGHT * -1);
+                return { id: id, x: x, y: y }
+            })
+
+            let scene = document.querySelector("a-entity");
+            buildDisplayFromMap(map, scene);
+        }
+
         // What to do when a stimulation ramp-up completes.
         let onStimComplete = (e) => {
             if (e.detail.name == 'animation__stim') {
@@ -318,7 +408,8 @@
             decayPhosphene: decayPhosphene,
             pulsePhosphenes: pulsePhosphenes,
             showNoConnectionLabel: showNoConnectionLabel,
-            buildDisplayFromMap: buildDisplayFromMap
+            buildDisplayFromMap: buildDisplayFromMap,
+            buildNewDisplay: buildNewDisplay
         }
     }
 
@@ -332,12 +423,13 @@
 
         let display = phospheneDisplay();
         let dataHandler = wsPhospheneDataHandler(id, display, logger);
+        let configHandler = wsControllerHandler(id, display)
 
         let scene = document.querySelector("a-entity");
         display.buildDisplayFromMap(ACTIVE_MAP, scene);
 
-
         logHandler.connect();
+        configHandler.connect();
         dataHandler.connect();
     });
 </script>
