@@ -136,7 +136,7 @@
         }
     } 
 
-    let nullLogDataHandler = (id) => {
+    let nullLogPhospheneHandler = (id) => {
         let log = (str) => {
             console.log(str)
         }
@@ -149,7 +149,7 @@
         }
     }
 
-    let wsLogDataHandler = (id) => {
+    let wsLogPhospheneHandler = (id) => {
         let _ws = null; // placeholder for websocket
         let _id = id;
         let _reconnectionHandle = null;
@@ -199,7 +199,7 @@
         }
     }
 
-    let wsPhospheneDataHandler = (id, display, logger) => {
+    let wsPhosphenePhospheneHandler = (id, display, logger) => {
         let _ws = null; // placeholder for websocket
         let _id = id;
         let _display = display;
@@ -273,7 +273,7 @@
         }
     }
 
-    let wsControllerHandler = (id, display) => {
+    let wsConfigHandler = (id, display) => {
         const EVENT_NEWCONFIG = "new_configuration"; // received when a new configuration is sent from server
 
         let _id = id;
@@ -283,7 +283,7 @@
         let _reconnectionHandle = null;
 
         let connect = () => {
-            _ws = new WebSocket(`wss://${window.location.hostname}/control`);
+            _ws = new WebSocket(`wss://${window.location.hostname}/config`);
             _ws.onopen = onOpenHandler;
             _ws.onclose = onCloseHandler;
             _ws.onmessage = onMessageHandler;
@@ -417,20 +417,20 @@
         let id = navigator.userAgent; 
 
         let consoleOutputObj = consoleOutput();
-        let logHandler = nullLogDataHandler(); // wsLogDataHandler(id);
+        let logHandler = nullLogPhospheneHandler(); // wsLogPhospheneHandler(id);
         let remoteOutputObj = remoteOutput(logHandler);
         let logger = loggingHandler(id, consoleOutputObj, remoteOutputObj);
 
         let display = phospheneDisplay();
-        let dataHandler = wsPhospheneDataHandler(id, display, logger);
-        let configHandler = wsControllerHandler(id, display)
+        let phospheneHandler = wsPhosphenePhospheneHandler(id, display, logger);
+        let configHandler = wsConfigHandler(id, display)
 
         let scene = document.querySelector("a-entity");
         display.buildDisplayFromMap(ACTIVE_MAP, scene);
 
         logHandler.connect();
         configHandler.connect();
-        dataHandler.connect();
+        phospheneHandler.connect();
     });
 </script>
 
