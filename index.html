@@ -199,7 +199,7 @@
         }
     }
 
-    let wsPhosphenePhospheneHandler = (id, display, logger) => {
+    let wsPhospheneHandler = (id, display, logger) => {
         let _ws = null; // placeholder for websocket
         let _id = id;
         let _display = display;
@@ -217,7 +217,7 @@
             clearInterval(_reconnectionHandle)
             _reconnectionHandle = null;
 
-            _logger.log("Connection established.");
+            _logger.log("Phosphene Data Connection established.");
             _display.showNoConnectionLabel(false);
             _display.pulsePhosphenes(false);
             _ws.send(JSON.stringify({
@@ -226,7 +226,7 @@
         }
 
         let onCloseHandler = (e) => {
-            _logger.log(`Connection lost...Retrying in ${CONNECTION_RETRY_INTERVAL}s...`);
+            _logger.log(`Phosphene Data Connection lost...Retrying in ${CONNECTION_RETRY_INTERVAL}s...`);
             _display.showNoConnectionLabel(true);
             _display.pulsePhosphenes(true);
             reconnect();
@@ -237,7 +237,7 @@
                 var data = JSON.parse(e.data);
             } catch (error) {
                 _logger.log(error);
-                _logger.log(`Invalid JSON data "${e.data}"`)
+                _logger.log(`Invalid JSON data in Phosphene Data Payload: "${e.data}"`)
                 return;
             }
 
@@ -293,11 +293,11 @@
             clearInterval(_reconnectionHandle)
             _reconnectionHandle = null;
 
-            console.log("Connection established.");
+            console.log("Config Connection established.");
         }
 
         let onCloseHandler = (e) => {
-            console.log(`Connection lost...Retrying in ${CONNECTION_RETRY_INTERVAL}s...`);
+            console.log(`Config Connection lost...Retrying in ${CONNECTION_RETRY_INTERVAL}s...`);
             reconnect();
         }
 
@@ -314,7 +314,7 @@
                 }
             } catch (error) {
                 console.log(error);
-                console.log(`Invalid JSON data "${e.data}"`)
+                console.log(`Invalid JSON data in Config payload "${e.data}"`)
                 return;
             }
         }
@@ -422,7 +422,7 @@
         let logger = loggingHandler(id, consoleOutputObj, remoteOutputObj);
 
         let display = phospheneDisplay();
-        let phospheneHandler = wsPhosphenePhospheneHandler(id, display, logger);
+        let phospheneHandler = wsPhospheneHandler(id, display, logger);
         let configHandler = wsConfigHandler(id, display)
 
         let scene = document.querySelector("a-entity");
