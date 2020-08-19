@@ -11,8 +11,7 @@
         const MAX_INTENSITY = 0.9999; //0 this is a work around for an A-Frame bug whereby sometimes an intensity of 1 will render as a solid colour with no texture
         const CONNECTION_RETRY_INTERVAL = 5000;
         const PHOSPHENE_STIM_RAMPUP_DURATION = 100; //in ms.
-        const PHOSPHENE_STIM_DURATION = 200; //in ms. Total stim duration = STIM_DURATION + STIM_RAMPUP_DURATION
-        const PHOSPHENE_DECAY_DURATION = 400; //in ms.
+        const PHOSPHENE_DECAY_DURATION = 200; //in ms.
         const SCENE_WIDTH = 1 // x-range -0.5 <= x <= 0.5 (determined by quick testing in the VR setup)
         const SCENE_HEIGHT = 0.8 // y-range -0.4 <= y <= 0.4 (determined by quick testing in the VR setup)
 
@@ -93,117 +92,10 @@
           
     */
 
-    let consoleOutput = () => {
-        return {
-            log: (x) => console.log(x),
-            warn: (x) => console.warn(x),
-            error: (x) => console.error(x)
-        }
-    }
-
-    let remoteOutput = (remoteLogger) => {
-        return {
-            log: (x) => remoteLogger.log(x),
-            warn: (x) => remoteLogger.log(x),
-            error: (x) => remoteLogger.log(x)
-        }
-    }
-
-    let loggingHandler = (id, consoleOutput, remoteOutput) => {
-        let _id = id;
-        let _consoleOutput = consoleOutput;
-        let _remoteOutput = remoteOutput;
-
-        let log = (str) => {
-            logLocal(str);
-            logRemote(str);
-        }
-
-        let logLocal = (str) => {
-            let msg = `[${id}] ${str}`;
-            _consoleOutput.log(msg);
-        }
-
-        let logRemote = (str) => {
-            let msg = `[${id}] ${str}`;
-            _remoteOutput.log(msg);
-        }
-
-        return {
-            log: log,
-            logLocal: logLocal,
-            logRemote: logRemote
-        }
-    } 
-
-    let nullLogPhospheneHandler = (id) => {
-        let log = (str) => {
-            console.log(str)
-        }
-
-        return {
-            connect: () => { },
-            log: log,
-            warn: log,
-            error: log
-        }
-    }
-
-    let wsLogPhospheneHandler = (id) => {
-        let _ws = null; // placeholder for websocket
-        let _id = id;
-        let _reconnectionHandle = null;
-
-        let connect = () => {
-            _ws = new WebSocket(`wss://${window.location.hostname}/log`);
-            _ws.onopen = onOpenHandler;
-            _ws.onclose = onCloseHandler;
-            _ws.onmessage = onMessageHandler;
-        }
-
-        let onOpenHandler = (e) => {
-            clearInterval(_reconnectionHandle)
-            _reconnectionHandle = null;
-        }
-
-        let onCloseHandler = (e) => {
-            reconnect();
-        }
-
-        let onMessageHandler = (e) => { // If a log message is coming from the server, only log it to local otherwise there could be an echo.
-            console.log(e.data); // This should be changed if possible to avoid the circular dependency
-        }
-        
-        let log = (str) => {
-            if (_ws == null || _ws.readyState != 1) return;
-            _ws.send(JSON.stringify({
-                "msg": str
-            })); 
-        }
-
-        let reconnect = () => {
-            if (_reconnectionHandle == null) {
-                _ws.close();
-                _ws = null;
-                _reconnectionHandle = setInterval(() => {
-                    connect();
-                }, CONNECTION_RETRY_INTERVAL)
-            }
-        }
-
-        return {
-            connect: connect,
-            log: log,
-            warn: log,
-            error: log
-        }
-    }
-
-    let wsPhospheneHandler = (id, display, logger) => {
+    let wsPhospheneHandler = (id, display) => {
         let _ws = null; // placeholder for websocket
         let _id = id;
         let _display = display;
-        let _logger = logger;
         let _reconnectionHandle = null;
 
         let connect = () => {
@@ -217,7 +109,7 @@
             clearInterval(_reconnectionHandle)
             _reconnectionHandle = null;
 
-            _logger.log("Phosphene Data Connection established.");
+            console.log("Phosphene Data Connection established.");
             _display.showNoConnectionLabel(false);
             _display.pulsePhosphenes(false);
             _ws.send(JSON.stringify({
@@ -226,7 +118,7 @@
         }
 
         let onCloseHandler = (e) => {
-            _logger.log(`Phosphene Data Connection lost...Retrying in ${CONNECTION_RETRY_INTERVAL}s...`);
+            console.log(`Phosphene Data Connection lost...Retrying in ${CONNECTION_RETRY_INTERVAL}s...`);
             _display.showNoConnectionLabel(true);
             _display.pulsePhosphenes(true);
             reconnect();
@@ -236,22 +128,22 @@
             try {
                 var data = JSON.parse(e.data);
             } catch (error) {
-                _logger.log(error);
-                _logger.log(`Invalid JSON data in Phosphene Data Payload: "${e.data}"`)
+                console.log(error);
+                console.log(`Invalid JSON data in Phosphene Data Payload: "${e.data}"`)
                 return;
             }
 
             var phosphene_data = data.dimsim.phosphene_ints;
+
             const payload = Object.keys(phosphene_data).map(id => { return { "id" : id, "int" : phosphene_data[id] } });
 
-            // If the payload is a delta (contains only new phosphenes for this cycle), then anything not in the payload is marked for decay
-            // If the payload is full set (contains all phosphenes in the array), then any phosphene with zero intensity is marked for decay
+            // The payload is expected to contain the full phosphene set (contains all phosphenes in the array)
+            // Any phosphene with zero intensity is marked for decay
             // If it's already decaying it will be left to complete its decay.
-            let decayList = ACTIVE_MAP.filter(x => payload.map(y => y.id).indexOf(x.id) == -1)
-                                      .concat(payload.filter(x => x.int == 0));
-            decayList.forEach(x => { _display.decayPhosphene(document.querySelector(`#p${x.id}`)); })
+            let decayList = payload.filter(x => x.int == 0);
+            decayList.forEach(x => { _display.decayPhosphene(x.id); })
 
-            // anything in the payload with a non-zero intensity level should be stimulated
+            // Anything in the payload with a non-zero intensity level should be stimulated
             let stimList = payload.filter(x => x.int != 0);
             stimList.forEach(x => {
                 _display.stimPhosphene(document.querySelector(`#p${x.id}`), x.int);
@@ -335,16 +227,19 @@
     }
 
     let phospheneDisplay = () => {
+        let phospheneDOMElements = {}; // Keep a cache of all phosphene DOM elements so that we don't have to do a lookup each cycle
+
         let stimPhosphene = (phEl, intensity) => {
             let stimIntensity = Math.min(intensity, MAX_INTENSITY); // There is a weird bug in A-Frame that phosphene texture 4 will show a white circle when stimulated at intensity 1
             phEl.components.animation__stim.data.from = phEl.components.material.material.opacity; // set the start to the material's current opacity in case it's already in the middle of a tween
             phEl.components.animation__stim.data.to = stimIntensity;
-            phEl.dispatchEvent(pauseDecayEvent); // if the phosphene is in the middle of a decay we want it to pause.
+            phEl.dispatchEvent(pauseDecayEvent); // if the phosphene is in the middle of a decay we want it to pause the decay animation.
             phEl.dispatchEvent(stimEvent);
         }
 
-        let decayPhosphene = (phEl) => {
-            if (phEl == null) { throw "Unknown phosphene! The active map is not in sync with the server"}
+        let decayPhosphene = (id) => {
+            let phEl = phospheneDOMElements[id];
+            if (phEl == null) { throw `Unknown phosphene [${id}] when attempting decay! The active map is not in sync with the server`}
             if (phEl.components.animation__decay.animationIsPlaying) {
                 return;
             } // Currently decaying...Don't interrupt
@@ -363,7 +258,10 @@
         }
 
         let buildDisplayFromMap = (map, scene) => {
-            $(scene).empty(); // Clear the scene before creating new phosphenes
+            // Clear the scene before creating new phosphenes
+            phospheneDOMElements = {};
+            $(scene).empty(); 
+
             map.forEach(ph => {
                 let o = document.createElement('a-phosphene');
                 o.setAttribute("radius", MAP_PARAMS.radius);
@@ -371,8 +269,8 @@
                 o.setAttribute("id", "p" + ph.id);
                 o.setAttribute("x", ph.x);
                 o.setAttribute("y", ph.y);
-                o.addEventListener('animationcomplete', onStimComplete);
                 scene.append(o);
+                phospheneDOMElements[ph.id] = o;
             })
         }
 
@@ -383,6 +281,7 @@
             let roiAzi = config.roi.width;
             let roiEle = config.roi.height;
 
+            // Converting from azi/ele format to the bounds of the display in cartesian system
             let map = config.phosphenes.map(ph => {
                 let id = ph.id;
                 let x = (((ph.azimuth / roiAzi) + 0.5) * SCENE_WIDTH) - (SCENE_WIDTH / 2);
@@ -392,15 +291,6 @@
 
             let scene = document.querySelector("a-entity");
             buildDisplayFromMap(map, scene);
-        }
-
-        // What to do when a stimulation ramp-up completes.
-        let onStimComplete = (e) => {
-            if (e.detail.name == 'animation__stim') {
-                setTimeout(() => {
-                    decayPhosphene(e.srcElement);
-                }, PHOSPHENE_STIM_DURATION)
-            }
         }
         
         return {
@@ -416,19 +306,13 @@
     $(document).ready((e) => {
         let id = navigator.userAgent; 
 
-        let consoleOutputObj = consoleOutput();
-        let logHandler = nullLogPhospheneHandler(); // wsLogPhospheneHandler(id);
-        let remoteOutputObj = remoteOutput(logHandler);
-        let logger = loggingHandler(id, consoleOutputObj, remoteOutputObj);
-
         let display = phospheneDisplay();
-        let phospheneHandler = wsPhospheneHandler(id, display, logger);
+        let phospheneHandler = wsPhospheneHandler(id, display);
         let configHandler = wsConfigHandler(id, display)
 
         let scene = document.querySelector("a-entity");
         display.buildDisplayFromMap(ACTIVE_MAP, scene);
 
-        logHandler.connect();
         configHandler.connect();
         phospheneHandler.connect();
     });
